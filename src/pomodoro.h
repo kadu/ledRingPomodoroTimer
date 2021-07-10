@@ -2,7 +2,6 @@
 #define POMODORO_H
 
 #include <Arduino.h>
-#include <WS2812FX.h>
 #include <Ticker.h>
 
 #define _ONE_MINUTE 2000
@@ -20,8 +19,6 @@ enum INTERVAL_STATE {
 class Pomodoro {
 
   private:
-    byte ledPin;   // pin to control leds ws2812
-    byte ledCount; // number of leds
     byte smallInterval;
     byte bigInterval;
     byte tempo;    // Pomodoro Time
@@ -30,7 +27,6 @@ class Pomodoro {
     bool isTimerRunning = false;
     bool botaoApertado = false;
     int  minutesTimer;
-    WS2812FX *ws2812fx;
     void (*_on_start_callback)();
     void (*_on_update_callback)(int);
     void (*_on_finish_callback)();
@@ -43,7 +39,7 @@ class Pomodoro {
     void changePomodoroState(enum STATES newState);
 
   public:
-    Pomodoro(byte ledPin,byte ledCount, byte smallInterval = 5, byte bigInterval = 15, byte tempo = 25);
+    Pomodoro(byte smallInterval = 5, byte bigInterval = 15, byte tempo = 25);
     ~Pomodoro();
     void init();
     void update(bool btn_play = false, bool btn_pause = false, bool btn_stop = false);
@@ -59,7 +55,6 @@ class Pomodoro {
     byte getCountdown();
     enum STATES getStates();
     enum INTERVAL_STATE getIState();
-
 
     Ticker *ticker = NULL;
 };

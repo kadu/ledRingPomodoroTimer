@@ -2,6 +2,7 @@
 #include <OneButton.h>
 #include <pomodoro.h>
 #include <Ticker.h>
+#include <ws2812fx.h>
 
 #define POMODOROINTERVAL    5
 #define POMODOROTIMER       25
@@ -13,39 +14,24 @@ byte LEDCOUNT = 16;
 byte NEOPIXELPIN= 4;
 
 OneButton button1(D1, false);
-Pomodoro pomodoro(NEOPIXELPIN, LEDCOUNT, POMODOROINTERVAL, POMODOROBIGINTERVAL, POMODOROTIMER);
+Pomodoro pomodoro(POMODOROINTERVAL, POMODOROBIGINTERVAL, POMODOROTIMER);
+WS2812FX ws2812fx = WS2812FX(LEDCOUNT, NEOPIXELPIN, NEO_GRB + NEO_KHZ800);
 
 void printCounter();
 
-Ticker timer2(printCounter, 1000, 0, MILLIS);
-
-void minutosTick() {
-  if(contapomodoro > 0) {
-    contapomodoro--;
-  }
-
-  // pixels.clear();
-  // uint32_t cor;
-  // int mapa = map(contapomodoro, 25,0,LEDCOUNT,0);
-
-  // if(contapomodoro > 5) {
-  //   cor = azul;
-  // } else {
-  //   cor = vermelho;
-  // }
-
-  // for (int i = 0; i < mapa; i++) {
-  //   pixels.setPixelColor(i,cor);
-  // }
-  // pixels.show();
-}
-
-void debugSegundo() {
-  Serial.println(contapomodoro);
-}
+Ticker timer(printCounter, 1000, 0, MILLIS);
 
 void setup() {
+
   Serial.begin(115200);
+
+  ws2812fx.init();
+  ws2812fx.setBrightness(5);
+  ws2812fx.setSpeed(1000);
+  ws2812fx.setColor(0x007BFF);
+  ws2812fx.setMode(FX_MODE_CHASE_RAINBOW);
+  ws2812fx.start();
+
   button1.attachClick([](){
     pomodoro.start();
     /*for (size_t i = 0; i < 1; i++) {
@@ -79,18 +65,14 @@ void setup() {
     Serial.println("OnFinish");
   });
 
-  timer2.start();
-
-  // timer.setInterval(_MINUTE_IN_MS, minutosTick);
-  // timer.setInterval(1000, debugSegundo);
+  timer.start();
 }
 
 void loop() {
-  // timer.run();
   button1.tick();
   pomodoro.update();
-  //ws2812fx.update();
-  timer2.update();
+  ws2812fx.service();
+  timer.update();
 }
 
 void printCounter() {
@@ -102,5 +84,3 @@ void printCounter() {
   Serial.print(pomodoro.getIState() ==  FSM_INTERVAL ? "Interval": "Worktime");
   Serial.println("]");
 }
-
-///

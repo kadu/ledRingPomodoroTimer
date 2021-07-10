@@ -1,8 +1,6 @@
 #include "pomodoro.h"
 
-Pomodoro::Pomodoro(byte ledPin,byte ledCount, byte smallInterval, byte bigInterval, byte tempo) {
-  this->ledPin = ledPin;
-  this->ledCount = ledCount;
+Pomodoro::Pomodoro(byte smallInterval, byte bigInterval, byte tempo) {
   this->smallInterval = smallInterval;
   this->bigInterval = bigInterval;
   this->tempo = tempo;
@@ -27,19 +25,12 @@ Pomodoro::~Pomodoro() {
 }
 
 void Pomodoro::init() {
-  this->ws2812fx = new WS2812FX(this->ledCount, this->ledPin, NEO_GRB + NEO_KHZ800);
-  this->ws2812fx->init();
-  this->ws2812fx->setBrightness(20);
-  this->ws2812fx->fill(BLACK,0, this->ledCount);
-  this->ws2812fx->clear();
-  this->ws2812fx->show();
   this->state = FSM_POMODORO_STOPPED;
   this->intervalState = FSM_INTERVAL;
   this->countdown = this->tempo;
 }
 
 void Pomodoro::update(bool btn_play, bool btn_pause, bool btn_stop) {
-  this->ws2812fx->service();
   if(this->ticker && this->state == FSM_POMODORO_RUNNING) {
     this->ticker->update();
   }
