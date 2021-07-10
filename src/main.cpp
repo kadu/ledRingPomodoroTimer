@@ -4,7 +4,7 @@
 #include <Ticker.h>
 
 #define POMODOROINTERVAL    5
-#define POMODOROTIMER       2
+#define POMODOROTIMER       25
 #define POMODOROBIGINTERVAL 15
 #define _MINUTE_IN_MS       1000
 
@@ -14,25 +14,10 @@ byte NEOPIXELPIN= 4;
 
 OneButton button1(D1, false);
 Pomodoro pomodoro(NEOPIXELPIN, LEDCOUNT, POMODOROINTERVAL, POMODOROBIGINTERVAL, POMODOROTIMER);
+
 void printCounter();
 
 Ticker timer2(printCounter, 1000, 0, MILLIS);
-
-void btnStartPause() {
-  Serial.println("Play / Pause");
-  pomodoro.start();
-
-  contapomodoro = 25;
-}
-
-void btnStop_StartPress() {
-  Serial.println("Play / Pause");
-  pomodoro.start();
-}
-
-void btnStop() {
-  Serial.println("Stop Pressed");
-}
 
 void minutosTick() {
   if(contapomodoro > 0) {
@@ -61,10 +46,38 @@ void debugSegundo() {
 
 void setup() {
   Serial.begin(115200);
+  button1.attachClick([](){
+    pomodoro.start();
+    /*for (size_t i = 0; i < 1; i++) {
+        this->ws2812fx->stop();
+        this->ws2812fx->clear();
+        this->ws2812fx->fill(BLUE,0, this->ledCount);
+        this->ws2812fx->show();
+        delay(100);
+        this->ws2812fx->stop();
+        this->ws2812fx->clear();
+        this->ws2812fx->show();
+        delay(100);
+      }*/
+  });
+  button1.attachDoubleClick([](){
+    pomodoro.pause();
+  });
+  button1.attachLongPressStop([](){
+    pomodoro.stop();
+  });
 
-  button1.attachClick(btnStartPause);
-  button1.attachLongPressStart(btnStop_StartPress);
-  button1.attachLongPressStop(btnStop);
+  pomodoro.onStart([](){
+    Serial.println("onStart");
+
+  });
+  pomodoro.onUpdate([](int countdown){
+    Serial.println("onUpdate");
+    Serial.println(countdown);
+  });
+  pomodoro.onFinish([](){
+    Serial.println("OnFinish");
+  });
 
   timer2.start();
 
@@ -76,11 +89,18 @@ void loop() {
   // timer.run();
   button1.tick();
   pomodoro.update();
-
+  //ws2812fx.update();
   timer2.update();
 }
 
 void printCounter() {
-  Serial.print("Counter ");
-  Serial.println(pomodoro.getCountdown());
+  Serial.print("Countdown [");
+  Serial.print(pomodoro.getCountdown());
+  Serial.print("] - State [");
+  Serial.print(pomodoro.getStates() == FSM_POMODORO_RUNNING ? "Running": "Stopped");
+  Serial.print("] - Interval [");
+  Serial.print(pomodoro.getIState() ==  FSM_INTERVAL ? "Interval": "Worktime");
+  Serial.println("]");
 }
+
+///
