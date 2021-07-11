@@ -4,8 +4,6 @@
 #include <Arduino.h>
 #include <Ticker.h>
 
-#define _ONE_MINUTE 2000
-
 enum STATES {
   FSM_POMODORO_STOPPED,
   FSM_POMODORO_RUNNING
@@ -33,7 +31,6 @@ class Pomodoro {
     enum STATES state = FSM_POMODORO_STOPPED;
     enum INTERVAL_STATE intervalState = FSM_INTERVAL;
 
-    void ledEffect(byte effectNumber);
     void countdownFinished();
     void changeIntervalState(enum INTERVAL_STATE newState);
     void changePomodoroState(enum STATES newState);
