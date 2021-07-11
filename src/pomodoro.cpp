@@ -13,7 +13,7 @@ Pomodoro::Pomodoro(byte smallInterval, byte bigInterval, byte tempo) {
     if (this->_on_update_callback) {
       this->_on_update_callback(this->countdown);
     }
-  }, _ONE_MINUTE, 0, MILLIS);
+  }, 1000, 0, MILLIS);
   this->ticker->start();
 
   init();
@@ -26,7 +26,7 @@ Pomodoro::~Pomodoro() {
 
 void Pomodoro::init() {
   this->state = FSM_POMODORO_STOPPED;
-  this->intervalState = FSM_INTERVAL;
+  this->intervalState = FSM_WORKTIME;
   this->countdown = this->tempo;
 }
 
@@ -41,16 +41,15 @@ void Pomodoro::update(bool btn_play, bool btn_pause, bool btn_stop) {
     this->countdown = 0;
   }
   if (this->state == FSM_POMODORO_RUNNING && this->intervalState == FSM_WORKTIME && this->countdown <= 0){
-    Serial.println("1");
     this->state = FSM_POMODORO_STOPPED;
     this->intervalState = FSM_INTERVAL;
-    this->countdown = this->smallInterval;
+    this->countdown = this->count > 0 && this->count % 4 == 0 ? this->bigInterval :this->smallInterval;
+    this->count++;
     if (this->_on_finish_callback) {
       this->_on_finish_callback();
     }
   }
   if (this->state == FSM_POMODORO_RUNNING && this->intervalState == FSM_INTERVAL  && this->countdown <= 0){
-    Serial.println("2");
     this->state = FSM_POMODORO_STOPPED;
     this->intervalState = FSM_WORKTIME;
     this->countdown = this->tempo;
@@ -93,22 +92,6 @@ void Pomodoro::onFinish(void (*callback)())
   this->_on_finish_callback = callback;
 }
 
-void Pomodoro::ledEffect(byte effectNumber) {
-  Serial.print("ledEffect ");
-
-  switch (effectNumber) {
-    case 0 /* constant-expression */:
-
-      break;
-    case 1:
-      Serial.println("1");
-
-      break;
-    default:
-      break;
-  }
-}
-
 byte Pomodoro::getPomodoros() {
   return this->count;
 }
@@ -119,11 +102,9 @@ byte Pomodoro::getCountdown() {
 
 
 void Pomodoro::click() {
-  this->ledEffect(0);
 }
 
 void Pomodoro::countdownFinished() {
-  this->ledEffect(1);
 }
 
 enum STATES Pomodoro::getStates() {
