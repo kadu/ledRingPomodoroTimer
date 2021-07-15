@@ -50,7 +50,6 @@ void notFound(AsyncWebServerRequest *request) {
     request->send(404, "text/plain", "Not found");
 }
 
-
 void setupOTA() {
   // Port defaults to 8266
   // ArduinoOTA.setPort(8266);
