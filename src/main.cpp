@@ -198,8 +198,8 @@ void setup() {
 }
 
 void loop() {
+  ArduinoOTA.handle();
+  ws2812fx.service();
   button1.tick();
   pomodoro.update();
-  ws2812fx.service();
-  ArduinoOTA.handle();
 }
