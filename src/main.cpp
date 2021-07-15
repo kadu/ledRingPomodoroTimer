@@ -1,13 +1,19 @@
 #include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <WiFiUdp.h>
 #include <OneButton.h>
-#include <pomodoro.h>
-#include <Ticker.h>
 #include <ws2812fx.h>
+#include <ArduinoOTA.h>
+#include <Ticker.h>
+#include <pomodoro.h>
 
 #define POMODOROINTERVAL    5
 #define POMODOROTIMER       25
 #define POMODOROBIGINTERVAL 15
-#define _MINUTE_IN_MS       1000
+#define _MINUTE_IN_MS       60000
 #define LEDCOUNT            16
 
 unsigned int contapomodoro = 0;
@@ -17,11 +23,68 @@ byte NEOPIXELPIN= 4;
 OneButton button1(D1, false);
 Pomodoro pomodoro(POMODOROINTERVAL, POMODOROBIGINTERVAL, POMODOROTIMER);
 WS2812FX ws2812fx = WS2812FX(LEDCOUNT, NEOPIXELPIN, NEO_GRB + NEO_KHZ800);
-void printCounter();
+AsyncWebServer server(80);
+
+void initWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin("kaduzius", "umasenhabemlegal27");
+  Serial.print("Connecting to WiFi ..");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print('.');
+    delay(1000);
+  }
+  Serial.println(WiFi.localIP());
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+}
+
+void printCounter() {
+  Serial.printf("Countdown [%02d] - State [%s] - Interval [%s]\n",
+    pomodoro.getCountdown(),
+    pomodoro.getStates() == FSM_POMODORO_RUNNING ? "Running": "Stopped",
+    pomodoro.getIState() ==  FSM_INTERVAL ? "Interval": "Worktime"
+  );
+}
+
+void notFound(AsyncWebServerRequest *request) {
+    request->send(404, "text/plain", "Not found");
+}
+
+
+void setupOTA() {
+  // Port defaults to 8266
+  // ArduinoOTA.setPort(8266);
+
+  // Hostname defaults to esp8266-[ChipID]
+  // ArduinoOTA.setHostname("myesp8266");
+
+  // No authentication by default
+  // ArduinoOTA.setPassword((const char *)"123");
+
+  ArduinoOTA.onStart([]() {
+    Serial.println("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+  });
+  ArduinoOTA.begin();
+}
 
 void setup() {
-
   Serial.begin(115200);
+  delay(2000);
+  Serial.println("Starting...");
 
   ws2812fx.init();
   ws2812fx.setBrightness(1);
@@ -38,12 +101,28 @@ void setup() {
     pomodoro.pause();
   });
 
-  button1.attachLongPressStop([](){
+  button1.attachLongPressStart([](){
     pomodoro.stop();
   });
 
   pomodoro.onStart([](){
     Serial.println("onStart");
+  });
+
+  pomodoro.onCount([]() {
+    Serial.println("onCount");
+  });
+
+  pomodoro.onPause([](){
+    Serial.println("onPause");
+  });
+
+  pomodoro.onResume([](){
+    Serial.println("onResume");
+  });
+
+  pomodoro.onTick([](){
+    Serial.println("onTick");
   });
 
   pomodoro.onUpdate([](int countdown){
@@ -105,18 +184,22 @@ void setup() {
     ws2812fx.show();
 
   });
+
+  //wifi
+  initWiFi();
+  setupOTA();
+
+  // webserver
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", "Hello, world");
+  });
+  server.onNotFound(notFound);
+  server.begin();
 }
 
 void loop() {
   button1.tick();
   pomodoro.update();
   ws2812fx.service();
-}
-
-void printCounter() {
-  Serial.printf("Countdown [%02d] - State [%s] - Interval [%s]\n",
-    pomodoro.getCountdown(),
-    pomodoro.getStates() == FSM_POMODORO_RUNNING ? "Running": "Stopped",
-    pomodoro.getIState() ==  FSM_INTERVAL ? "Interval": "Worktime"
-  );
+  ArduinoOTA.handle();
 }

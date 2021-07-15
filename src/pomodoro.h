@@ -28,6 +28,12 @@ class Pomodoro {
     void (*_on_start_callback)();
     void (*_on_update_callback)(int);
     void (*_on_finish_callback)();
+    void (*_on_resume_callback)();
+    void (*_on_count_callback)();
+    void (*_on_tick_callback)();
+    void (*_on_pause_callback)();
+    void (*_on_stop_callback)();
+
     enum STATES state = FSM_POMODORO_STOPPED;
     enum INTERVAL_STATE intervalState = FSM_INTERVAL;
 
@@ -47,6 +53,11 @@ class Pomodoro {
     void onStart(void (*callback)());
     void onUpdate(void (*callback)(int));
     void onFinish(void (*callback)());
+    void onResume(void (*callback)());
+    void onCount(void (*callback)());
+    void onTick(void (*callback)());
+    void onPause(void (*callback)());
+    void onStop(void (*callback)());
 
     byte getPomodoros();
     byte getCountdown();
