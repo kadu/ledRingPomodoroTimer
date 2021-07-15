@@ -27,7 +27,7 @@ AsyncWebServer server(80);
 
 void initWiFi() {
   WiFi.mode(WIFI_STA);
-  WiFi.begin("kaduzius", "umasenhabemlegal27");
+  WiFi.begin("...", "...");
   Serial.print("Connecting to WiFi ..");
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
