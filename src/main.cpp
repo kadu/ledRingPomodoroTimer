@@ -9,16 +9,24 @@
 #include <ArduinoOTA.h>
 #include <Ticker.h>
 #include <pomodoro.h>
+#include <secrets.h>
 
-#define POMODOROINTERVAL    5
-#define POMODOROTIMER       25
-#define POMODOROBIGINTERVAL 15
+#define POMODOROTIMER       16   // segundos
+#define POMODOROINTERVAL    8    // segundos
+#define POMODOROBIGINTERVAL 16    // segundos
+
 #define _MINUTE_IN_MS       60000
+
 #define LEDCOUNT            16
+#define BUZZPIN             D6
+
+unsigned int frequency = 1000;
+unsigned int beeps = 10;
 
 unsigned int contapomodoro = 0;
 byte c = 16;
 byte NEOPIXELPIN= 4;
+bool isEffectRunning = false;
 
 OneButton button1(D1, false);
 Pomodoro pomodoro(POMODOROINTERVAL, POMODOROBIGINTERVAL, POMODOROTIMER);
@@ -27,7 +35,7 @@ AsyncWebServer server(80);
 
 void initWiFi() {
   WiFi.mode(WIFI_STA);
-  WiFi.begin("...", "...");
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
   Serial.print("Connecting to WiFi ..");
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print('.');
@@ -39,7 +47,7 @@ void initWiFi() {
 }
 
 void printCounter() {
-  Serial.printf("Countdown [%02d] - State [%s] - Interval [%s]\n",
+  Serial.printf("Countdown [%02d secs] - State [%s] - Interval [%s]\n",
     pomodoro.getCountdown(),
     pomodoro.getStates() == FSM_POMODORO_RUNNING ? "Running": "Stopped",
     pomodoro.getIState() ==  FSM_INTERVAL ? "Interval": "Worktime"
@@ -48,6 +56,16 @@ void printCounter() {
 
 void notFound(AsyncWebServerRequest *request) {
     request->send(404, "text/plain", "Not found");
+}
+
+void clickEffect() {
+  ws2812fx.stop();
+  ws2812fx.clear();
+  ws2812fx.fill(WHITE,0,LEDCOUNT);
+  ws2812fx.show();
+  Serial.println("show 1");
+  delay(50);
+  ws2812fx.clear();
 }
 
 void setupOTA() {
@@ -61,7 +79,7 @@ void setupOTA() {
   // ArduinoOTA.setPassword((const char *)"123");
 
   ArduinoOTA.onStart([]() {
-    Serial.println("Start");
+    Serial.println(" OTA Start");
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\nEnd");
@@ -81,6 +99,9 @@ void setupOTA() {
 }
 
 void setup() {
+  pinMode(BUZZPIN, OUTPUT);
+  digitalWrite(BUZZPIN, LOW);
+
   Serial.begin(115200);
   delay(2000);
   Serial.println("Starting...");
@@ -91,78 +112,73 @@ void setup() {
   ws2812fx.setColor(0x007BFF);
   ws2812fx.setMode(FX_MODE_CHASE_RAINBOW);
   ws2812fx.start();
+  Serial.println("start 1");
 
   button1.attachClick([](){
-    pomodoro.start();
+    Serial.println("Click (start/resume)");
+    clickEffect();
+    ws2812fx.stop();
+    ws2812fx.clear();
+
+    if(pomodoro.getStates() != FSM_POMODORO_RUNNING) {
+      pomodoro.start();
+    }
   });
 
   button1.attachDoubleClick([](){
+    Serial.println("double Click (pause)");
+    clickEffect();
+    clickEffect();
     pomodoro.pause();
   });
 
   button1.attachLongPressStart([](){
+    clickEffect();
+    clickEffect();
+    clickEffect();
+    Serial.println("longPress (stop [skip])");
     pomodoro.stop();
   });
 
   pomodoro.onStart([](){
-    Serial.println("onStart");
+    Serial.print("onStart - ");
+    printCounter();
   });
 
   pomodoro.onCount([]() {
-    Serial.println("onCount");
+    Serial.print("onCount - ");
+    printCounter();
   });
 
   pomodoro.onPause([](){
-    Serial.println("onPause");
+    Serial.print("onPause - ");
+    printCounter();
   });
 
   pomodoro.onResume([](){
-    Serial.println("onResume");
+    Serial.print("onResume - ");
+    printCounter();
   });
 
   pomodoro.onTick([](){
-    Serial.println("onTick");
+    Serial.print("onTick - ");
+    unsigned int countdown = pomodoro.getCountdown();
+    unsigned int maxTempo = pomodoro.getIState() == FSM_INTERVAL ? POMODOROINTERVAL : POMODOROTIMER;
+    unsigned int mapa = map(countdown, 0, maxTempo, 0, LEDCOUNT);
+    Serial.printf("mapa [%d] - ", mapa);
+    printCounter();
   });
 
   pomodoro.onUpdate([](int countdown){
-    printCounter();
+    unsigned int maxTempo = pomodoro.getIState() == FSM_INTERVAL ? POMODOROINTERVAL : POMODOROTIMER;
+    unsigned int mapa = map(countdown, 0, maxTempo, 0, LEDCOUNT);
+    uint32_t cor = CYAN;
 
-    int maxTempo = pomodoro.getIState() == FSM_INTERVAL ? POMODOROINTERVAL : POMODOROTIMER;
-    int mapa = map(countdown, 0, maxTempo, 0, LEDCOUNT);
-    uint32_t cor;
-
-    if(pomodoro.getStates() == FSM_POMODORO_RUNNING) {
-      switch (pomodoro.getIState()) {
-      case FSM_INTERVAL:
-        cor = BLUE;
-        break;
-      case FSM_WORKTIME:
-        cor = RED;
-        break;
-      default:
-        cor = ORANGE;
-        break;
-      }
-    } else {
-      cor = YELLOW;
-    }
-
-    Serial.println(mapa);
-    ws2812fx.stop();
-    ws2812fx.clear();
-    ws2812fx.fill(cor, 0, mapa+1);
-    ws2812fx.show();
-  });
-
-  pomodoro.onFinish([](){
-    Serial.println("OnFinish");
-    Serial.printf("Pomodoros: %02d", pomodoro.getPomodoros());
-    printCounter();
-    uint32_t cor;
-
+    // Verifica qual cor ser colocada nos leds baseados no estaudo do pomodoro
+    // intervalo curto (Azul) , intervalo longo (Magenta), pomodoro (RED)
     switch (pomodoro.getIState()) {
     case FSM_INTERVAL:
-      cor = BLUE;
+      cor = pomodoro.getPomodoros() > 0 && pomodoro.getPomodoros() % 4 == 0 ? MAGENTA:BLUE;
       break;
     case FSM_WORKTIME:
       cor = RED;
@@ -172,16 +188,24 @@ void setup() {
       break;
     }
 
-    ws2812fx.stop();
     ws2812fx.clear();
-    ws2812fx.fill(cor, 0, LEDCOUNT);
+    ws2812fx.setColor(cor);
+    ws2812fx.fill(cor, 0, mapa);  // Coloca no led ring a cor nos LEDS corretos
+    ws2812fx.show();
 
     if(pomodoro.getStates() != FSM_POMODORO_RUNNING) {
       cor = YELLOW;
+      ws2812fx.stop();
       ws2812fx.fill(cor, LEDCOUNT/2, LEDCOUNT);
+      ws2812fx.show();
     }
-    ws2812fx.show();
+  });
 
+  pomodoro.onFinish([](){
+    isEffectRunning = false;
+    Serial.print("OnFinish - ");
+    Serial.printf("Pomodoros: %02d\n\n", pomodoro.getPomodoros());
+    printCounter();
   });
 
   //wifi
@@ -194,6 +218,9 @@ void setup() {
   });
   server.onNotFound(notFound);
   server.begin();
+
+  Serial.println("Ready!");
+  Serial.printf(" big %d smal %d tempo %d", pomodoro.bigInterval, pomodoro.smallInterval, pomodoro.tempo);
 }
 
 void loop() {
