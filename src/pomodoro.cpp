@@ -1,27 +1,28 @@
 #include "pomodoro.h"
 
-Pomodoro::Pomodoro(byte smallInterval, byte bigInterval, byte tempo) {
+Pomodoro::Pomodoro(unsigned int smallInterval, unsigned int bigInterval, unsigned int tempo) {
   this->smallInterval = smallInterval;
   this->bigInterval = bigInterval;
   this->tempo = tempo;
 
   /** ticker **/
-  this->ticker = new Ticker([this](){
+  this->minutesTicker = new Ticker([this](){
     if(this->countdown > 0) {
       this->countdown--;
     }
-    if (this->_on_update_callback) {
-      this->_on_update_callback(this->countdown);
+
+    if (this->_on_tick_callback) {
+      this->_on_tick_callback();
     }
-  }, 60000, 0, MILLIS);
-  this->ticker->start();
+  }, 1000, 0, MILLIS);
+  this->minutesTicker->start();
 
   init();
 }
 
 Pomodoro::~Pomodoro() {
 
-  delete this->ticker;
+  delete this->minutesTicker;
 }
 
 void Pomodoro::init() {
@@ -31,8 +32,13 @@ void Pomodoro::init() {
 }
 
 void Pomodoro::update(bool btn_play, bool btn_pause, bool btn_stop) {
-  if(this->ticker && this->state == FSM_POMODORO_RUNNING) {
-    this->ticker->update();
+
+  if (this->_on_update_callback) {
+    this->_on_update_callback(this->countdown);
+  }
+
+  if(this->minutesTicker && this->state == FSM_POMODORO_RUNNING) {
+    this->minutesTicker->update();
   }
   if (this->state == FSM_POMODORO_RUNNING && btn_pause) {
     this->state = FSM_POMODORO_STOPPED;
@@ -67,10 +73,12 @@ void Pomodoro::update(bool btn_play, bool btn_pause, bool btn_stop) {
 
 void Pomodoro::start() {
   this->update(true, false, false);
+  this->minutesTicker->start();
 }
 
 void Pomodoro::pause() {
   this->update(false, true, false);
+  this->minutesTicker->pause();
   if (this->_on_pause_callback) {
     this->_on_pause_callback();
   }
@@ -78,6 +86,7 @@ void Pomodoro::pause() {
 
 void Pomodoro::stop() {
   this->update(false, false, true);
+  this->minutesTicker->stop();
   if (this->_on_stop_callback) {
     this->_on_stop_callback();
   }
@@ -119,7 +128,7 @@ byte Pomodoro::getPomodoros() {
   return this->count;
 }
 
-byte Pomodoro::getCountdown() {
+unsigned int Pomodoro::getCountdown() {
   return this->countdown;
 }
 

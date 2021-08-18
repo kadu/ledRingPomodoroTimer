@@ -17,11 +17,9 @@ enum INTERVAL_STATE {
 class Pomodoro {
 
   private:
-    byte smallInterval;
-    byte bigInterval;
-    byte tempo;    // Pomodoro Time
+
     byte count;    // numero de pomodoros feitos (sera reiniciado quando apertar o STOPPP)
-    byte countdown = 0;
+    unsigned int  countdown = 0;
     bool isTimerRunning = false;
     bool botaoApertado = false;
     int  minutesTimer;
@@ -42,7 +40,10 @@ class Pomodoro {
     void changePomodoroState(enum STATES newState);
 
   public:
-    Pomodoro(byte smallInterval = 5, byte bigInterval = 15, byte tempo = 25);
+    unsigned int smallInterval;
+    unsigned int bigInterval;
+    unsigned int tempo;    // Pomodoro Time
+    Pomodoro(unsigned int smallInterval = 300, unsigned int bigInterval = 900, unsigned int tempo = 1500);
     ~Pomodoro();
     void init();
     void update(bool btn_play = false, bool btn_pause = false, bool btn_stop = false);
@@ -60,11 +61,11 @@ class Pomodoro {
     void onStop(void (*callback)());
 
     byte getPomodoros();
-    byte getCountdown();
+    unsigned int getCountdown();
     enum STATES getStates();
     enum INTERVAL_STATE getIState();
 
-    Ticker *ticker = NULL;
+    Ticker *minutesTicker = NULL;
 };
 
 #endif
