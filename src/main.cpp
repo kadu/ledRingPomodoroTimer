@@ -8,30 +8,35 @@
 #include <ws2812fx.h>
 #include <ArduinoOTA.h>
 #include <Ticker.h>
+#include <ESP8266RTTTLPlus.h>
 #include <pomodoro.h>
 #include <secrets.h>
 
-#define POMODOROTIMER       16   // segundos
-#define POMODOROINTERVAL    8    // segundos
-#define POMODOROBIGINTERVAL 16    // segundos
-
-#define _MINUTE_IN_MS       60000
+#define POMODOROTIMER       1500   // segundos
+#define POMODOROINTERVAL    300    // segundos
+#define POMODOROBIGINTERVAL 900    // segundos
 
 #define LEDCOUNT            16
-#define BUZZPIN             D6
+#define BUZZPIN             13
+#define BUTTONPIN           5
 
 unsigned int frequency = 1000;
 unsigned int beeps = 10;
 
+
 unsigned int contapomodoro = 0;
 byte c = 16;
-byte NEOPIXELPIN= 4;
-bool isEffectRunning = false;
+byte NEOPIXELPIN= 12;
+bool ledBlink = false;
 
-OneButton button1(D1, false);
+OneButton button1(BUTTONPIN, false);
 Pomodoro pomodoro(POMODOROINTERVAL, POMODOROBIGINTERVAL, POMODOROTIMER);
 WS2812FX ws2812fx = WS2812FX(LEDCOUNT, NEOPIXELPIN, NEO_GRB + NEO_KHZ800);
 AsyncWebServer server(80);
+
+static char music_ENDPOMODORE[500] = "PomodoroEND:d=4,o=5,b=250:c6,c6";
+static char music_STARTPOMODORE[500] = "PomodoroSTART:d=4,o=5,b=80:32p,16c#6,32d#6";
+static char music_CLICK[500] = "Click:d=4,o=5,b=80:32p,32d#6";
 
 void initWiFi() {
   WiFi.mode(WIFI_STA);
@@ -99,21 +104,19 @@ void setupOTA() {
 }
 
 void setup() {
-  pinMode(BUZZPIN, OUTPUT);
-  digitalWrite(BUZZPIN, LOW);
-
   Serial.begin(115200);
-  delay(2000);
   Serial.println("Starting...");
 
   ws2812fx.init();
-  ws2812fx.setBrightness(1);
+  ws2812fx.setBrightness(5);
   ws2812fx.setSpeed(1000);
   ws2812fx.setColor(0x007BFF);
   ws2812fx.setMode(FX_MODE_CHASE_RAINBOW);
   ws2812fx.start();
   Serial.println("start 1");
 
+
+ //1
   button1.attachClick([](){
     Serial.println("Click (start/resume)");
     clickEffect();
@@ -123,6 +126,9 @@ void setup() {
     if(pomodoro.getStates() != FSM_POMODORO_RUNNING) {
       pomodoro.start();
     }
+
+    // e8rtp::setup(BUZZPIN, 5, music_CLICK);
+    // e8rtp::start();
   });
 
   button1.attachDoubleClick([](){
@@ -130,6 +136,8 @@ void setup() {
     clickEffect();
     clickEffect();
     pomodoro.pause();
+    e8rtp::setup(BUZZPIN, 5, music_CLICK);
+    e8rtp::start();
   });
 
   button1.attachLongPressStart([](){
@@ -138,11 +146,15 @@ void setup() {
     clickEffect();
     Serial.println("longPress (stop [skip])");
     pomodoro.stop();
+    e8rtp::setup(BUZZPIN, 5, music_CLICK);
+    e8rtp::start();
   });
 
   pomodoro.onStart([](){
     Serial.print("onStart - ");
     printCounter();
+    e8rtp::setup(BUZZPIN, 5, music_STARTPOMODORE);
+    e8rtp::start();
   });
 
   pomodoro.onCount([]() {
@@ -202,11 +214,14 @@ void setup() {
   });
 
   pomodoro.onFinish([](){
-    isEffectRunning = false;
     Serial.print("OnFinish - ");
     Serial.printf("Pomodoros: %02d\n\n", pomodoro.getPomodoros());
     printCounter();
+    e8rtp::setup(BUZZPIN, 5, music_ENDPOMODORE);
+    e8rtp::start();
   });
+
+  //2
 
   //wifi
   initWiFi();
@@ -220,12 +235,17 @@ void setup() {
   server.begin();
 
   Serial.println("Ready!");
-  Serial.printf(" big %d smal %d tempo %d", pomodoro.bigInterval, pomodoro.smallInterval, pomodoro.tempo);
+  // Serial.printf(" big %d smal %d tempo %d", pomodoro.bigInterval, pomodoro.smallInterval, pomodoro.tempo);
+
+  e8rtp::setup(BUZZPIN, 5, music_ENDPOMODORE);
+  e8rtp::start();
+
 }
 
 void loop() {
   ArduinoOTA.handle();
   ws2812fx.service();
+  e8rtp::loop();
   button1.tick();
   pomodoro.update();
 }
