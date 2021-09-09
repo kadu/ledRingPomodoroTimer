@@ -165,11 +165,15 @@ void setup() {
   pomodoro.onPause([](){
     Serial.print("onPause - ");
     printCounter();
+    e8rtp::setup(BUZZPIN, 5, music_STARTPOMODORE);
+    e8rtp::start();
   });
 
   pomodoro.onResume([](){
     Serial.print("onResume - ");
     printCounter();
+    e8rtp::setup(BUZZPIN, 5, music_STARTPOMODORE);
+    e8rtp::start();
   });
 
   pomodoro.onTick([](){
